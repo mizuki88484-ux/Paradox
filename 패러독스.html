@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dark Fantasy JRPG Web</title>
+<style>
+    :root {
+        --bg-color: #0a0a0c;
+        --text-color: #d8c8a7;
+        --accent-color: #8b0000;
+        --border-color: #3e3222;
+    }
+
+    body {
+        margin: 0; padding: 0;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        font-family: 'Times New Roman', serif;
+        line-height: 1.6;
+        scroll-behavior: smooth;
+        overflow-x: hidden;
+    }
+
+    /* 사이드 네비게이션 */
+    .side-nav {
+        position: fixed; left: 20px; top: 50%; transform: translateY(-50%);
+        display: flex; flex-direction: column; gap: 20px; z-index: 100;
+    }
+    .nav-item { display: flex; align-items: center; gap: 12px; text-decoration: none; color: var(--text-color); opacity: 0.3; transition: all 0.4s ease; }
+    .nav-item:hover, .nav-item.active { opacity: 1; }
+    .nav-icon { width: 20px; height: 20px; border-radius: 50%; border: 1px dashed #555; transition: all 0.4s ease; }
+    .nav-item.active .nav-icon, .nav-item:hover .nav-icon { border-color: var(--text-color); }
+    .nav-divider { font-size: 0.8rem; color: #444; }
+    .nav-text { font-size: 0.75rem; letter-spacing: 2px; transition: all 0.4s ease; transform-origin: left center; }
+    .nav-item.active .nav-text { font-size: 1.1rem; color: var(--accent-color); text-shadow: 0 0 10px rgba(139, 0, 0, 0.5); font-weight: bold; }
+    .nav-item.active .nav-divider { color: var(--accent-color); }
+
+    section {
+        min-height: 100vh; padding: 80px 20px; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; border-bottom: 1px dashed var(--border-color); position: relative;
+    }
+
+    h1, h2 { text-transform: uppercase; letter-spacing: 5px; text-shadow: 2px 2px 5px #000; color: #fff; margin-bottom: 1rem; text-align: center; }
+    h1 { font-size: 2.5rem; }
+    .runic-text { font-size: 1.2rem; letter-spacing: 4px; text-align: center; max-width: 800px; color: #887a64; opacity: 0.8; }
+
+    /* =========================================
+       [캐릭터 섹션 무대 세팅]
+       ========================================= */
+    #characters { padding: 0; background-color: #050505; }
+    .character-stage {
+        position: relative; width: 100%; max-width: 1750px; aspect-ratio: 1750 / 1100;
+        background-image: url('image_0.webp'); background-size: cover;
+        background-position: center; background-repeat: no-repeat;
+        overflow: hidden; margin: 0 auto;
+    }
+    .character-layer {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        display: none; animation: fadeIn 0.8s ease;
+    }
+    .character-layer.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    /* 중앙 스탠딩 및 정보 */
+    .standing-character {
+        position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+        height: 95%; z-index: 50; pointer-events: none; filter: drop-shadow(0 0 20px rgba(0,0,0,0.7));
+    }
+    .standing-character img { height: 100%; width: auto; display: block; }
+
+    .char-info-block {
+        position: absolute; bottom: 185px; left: 50%; transform: translateX(-50%);
+        text-align: center; z-index: 60; width: 80%; pointer-events: none;
+        text-shadow: 0 0 10px rgba(0,0,0,0.9);
+    }
+    .char-name { font-size: 1.8rem; color: var(--accent-color); margin: 0 0 2px 0; font-weight: bold; letter-spacing: 3px; line-height: 1.1; }
+    .char-affiliation { font-size: 1rem; color: var(--text-color); opacity: 0.8; margin: 0 0 10px 0; letter-spacing: 2px; line-height: 1.2; }
+    .char-quote { font-size: 1.2rem; color: #fff; font-style: italic; margin: 0; letter-spacing: 2px; line-height: 1.4; }
+    .char-quote::before, .char-quote::after { content: '"'; color: var(--accent-color); margin: 0 5px; }
+
+    /* 파편(Shard) */
+    .shard { position: absolute; cursor: pointer; z-index: 10; transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1), filter 0.5s; }
+    .shard img { width: 100%; height: auto; display: block; filter: drop-shadow(0 0 15px rgba(0,0,0,0.9)); }
+    .shard:hover { transform: translateY(-15px) scale(1.03); filter: brightness(1.3); z-index: 20; }
+
+    /* =========================================
+       [하단 네비게이션]
+       ========================================= */
+    .char-nav-container {
+        position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+        width: 66%; max-width: 800px; background: transparent; border: none;
+        display: flex; align-items: center; padding: 10px 20px; z-index: 100;
+    }
+    .nav-arrow { background: transparent; border: none; color: #888; font-size: 2.5rem; cursor: pointer; padding: 0 20px; transition: color 0.3s; text-shadow: 0 0 10px #000; }
+    .nav-arrow:hover { color: var(--accent-color); }
+    .char-slider { display: flex; gap: 20px; overflow-x: hidden; scroll-behavior: smooth; padding: 10px 0; width: 100%; }
+    .char-icon-box { display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; min-width: 80px; opacity: 0.5; transition: all 0.3s ease; }
+    .char-icon-box:hover { opacity: 0.9; }
+    .char-icon-box.active { opacity: 1; }
+    .icon-circle {
+        width: 60px; height: 60px; border-radius: 50%; background-color: #111; background-size: cover; background-position: center;
+        border: 2px solid transparent; transition: all 0.3s ease; position: relative;
+    }
+    .char-icon-box.active .icon-circle { border-color: #8b0000; box-shadow: 0 0 20px rgba(139, 0, 0, 0.8); }
+    .char-icon-box.active .icon-circle::after {
+        content: ''; position: absolute; top: -10px; left: -10px; right: -10px; bottom: -10px;
+        border: 1px dashed #8b0000; border-radius: 50%; animation: spin 8s linear infinite;
+    }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+    .icon-name { font-size: 0.75rem; color: #887a64; letter-spacing: 2px; text-shadow: 0 0 5px #000; }
+    .char-icon-box.active .icon-name { color: #fff; text-shadow: 0 0 8px #ff0000; font-weight: bold; }
+
+    /* =========================================
+       [개편된 노드 맵 팝업 모달창]
+       ========================================= */
+    .modal-overlay {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0, 0, 0, 0.92); backdrop-filter: blur(10px);
+        display: flex; align-items: center; justify-content: center;
+        z-index: 9999; opacity: 0; pointer-events: none; transition: opacity 0.4s ease;
+    }
+    .modal-overlay.active { opacity: 1; pointer-events: auto; }
+    
+    .modal-content-box {
+        position: relative;
+        width: 90%; max-width: 1280px; 
+        aspect-ratio: 16 / 9; /* 1280x720 권장 비율 */
+        background-color: #050505;
+        background-size: cover; background-position: center;
+        border: 1px solid var(--border-color);
+        box-shadow: 0 0 50px rgba(139, 0, 0, 0.3), inset 0 0 100px #000;
+        transform: translateY(30px); transition: transform 0.4s ease;
+        overflow: hidden;
+    }
+    .modal-overlay.active .modal-content-box { transform: translateY(0); }
+    
+    .close-btn { position: absolute; top: 15px; right: 25px; font-size: 2.5rem; color: #aaa; cursor: pointer; transition: color 0.3s; z-index: 200; text-shadow: 0 0 5px #000;}
+    .close-btn:hover { color: var(--accent-color); }
+
+    /* 모달 좌상단 제목 영역 */
+    .modal-header { position: absolute; top: 40px; left: 50px; z-index: 10; pointer-events: none; }
+    .modal-title { font-size: 2.2rem; color: var(--text-color); margin: 0; text-shadow: 2px 2px 10px #000; letter-spacing: 3px; border-bottom: 2px solid var(--accent-color); padding-bottom: 5px; display: inline-block;}
+    .modal-subtitle { font-size: 1rem; color: #888; margin-top: 10px; font-style: italic; letter-spacing: 1px; text-shadow: 1px 1px 5px #000;}
+
+    /* 노드(아이콘) 컨테이너 및 아이콘 설정 */
+    .node-map-area { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+    .node-item { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    
+    .node-icon {
+        border-radius: 50%; background-color: #111; background-size: cover; background-position: center;
+        border: 2px solid #555; box-shadow: 0 0 10px rgba(0,0,0,0.8);
+        cursor: pointer; transition: all 0.3s ease; position: relative;
+    }
+    .node-icon:hover { border-color: var(--accent-color); box-shadow: 0 0 20px var(--accent-color); transform: scale(1.05); }
+    
+    /* 아이콘 크기 베리에이션 */
+    .node-lg { width: 200px; height: 200px; }
+    .node-md { width: 140px; height: 140px; }
+    .node-sm { width: 110px; height: 110px; }
+
+    /* 아이콘 하단 룬문자 제목 */
+    .node-label { margin-top: 8px; font-size: 0.8rem; color: #887a64; letter-spacing: 2px; text-shadow: 0 0 5px #000; }
+    
+    /* 툴팁 (정보창) */
+    .node-tooltip {
+        position: absolute; 
+        width: 400px; /* 가로 길이를 변경하세요 (기존 280px) */
+        padding: 30px;
+        background: rgba(10, 10, 12, 0.95); border: 1px solid var(--accent-color);
+        color: #ddd; font-size: 0.9rem; line-height: 1.5; text-align: left;
+        box-shadow: 0 0 30px rgba(0,0,0,0.9); pointer-events: none;
+        opacity: 0; transition: all 0.3s ease; z-index: 100;
+        /* 기본 방향: 오른쪽 */
+        left: 120%; top: 37%; transform: translateY(-50%);
+    }
+    .node-tooltip h4 { margin: 0 0 10px 0; color: var(--text-color); font-size: 1.1rem; border-bottom: 1px dashed #555; padding-bottom: 5px;}
+    
+    /* 호버 시 툴팁 등장 */
+    .node-icon:hover ~ .node-tooltip { opacity: 1; }
+    
+    /* 툴팁 방향 전환 클래스 */
+    .node-tooltip.left { left: auto; right: 120%; }
+    .node-tooltip.top { left: 50%; top: auto; bottom: 120%; transform: translateX(-50%); }
+    .node-tooltip.bottom { left: 50%; top: 120%; transform: translateX(-50%); }
+
+    /* 기타 섹션 유지 */
+    .map-box { width: 100%; max-width: 900px; height: 500px; border: 2px solid var(--accent-color); background: #151515; display: flex; align-items: center; justify-content: center; margin-top: 2rem; }
+    .play-btn { padding: 15px 50px; font-size: 1.5rem; background-color: transparent; color: var(--accent-color); border: 2px solid var(--accent-color); cursor: pointer; letter-spacing: 3px; }
+</style>
+</head>
+<body>
+
+<nav class="side-nav">
+    <a href="#home" class="nav-item active"><div class="nav-icon"></div><span class="nav-divider">|</span><span class="nav-text">ᚺᛟᛗᛖ</span></a>
+    <a href="#characters" class="nav-item"><div class="nav-icon"></div><span class="nav-divider">|</span><span class="nav-text">ᚲᚺᚨᚱᚨᚲᛏᛖᚱ</span></a>
+    <a href="#lore" class="nav-item"><div class="nav-icon"></div><span class="nav-divider">|</span><span class="nav-text">ᛚᛟᚱᛖ</span></a>
+    <a href="#map" class="nav-item"><div class="nav-icon"></div><span class="nav-divider">|</span><span class="nav-text">ᛗᚨᛈ</span></a>
+    <a href="#play" class="nav-item"><div class="nav-icon"></div><span class="nav-divider">|</span><span class="nav-text">ᛈᛚᚨᚤ</span></a>
+</nav>
+
+<section id="home">
+    <h1>ᛞᚨᚱᚲ ᚠᚨᚾᛏᚨᛊᚤ ᛟᛞᚤᛊᛊᚤ</h1>
+    <p class="runic-text">ᚠᚢᚦᚨᚱᚲ ᚷᚹᚺᚾᛁᛃᛇ ᛈᛉᛊᛏ ᛒᛖᛗᛚ ᛜᛟᛞ ᚫᚪᚣᛡ ᛢᛣᛤ.</p>
+</section>
+
+<section id="characters">
+    <div class="character-stage">
+        
+        <div class="character-layer active" id="layer-char-1">
+            <div class="standing-character"><img src="1S.png" alt="스탠딩"></div>
+            <div class="char-info-block runic-text">
+                <h3 class="char-name">ᚺᛁᚱᛟ ᚾᛁᚲᚨᛁᛞᛟ</h3>
+                <p class="char-affiliation">ᛊᛟᛊᛟᚲ: ᚨᛒᛤᛊᛊ ᚹᚨᛚᚲᛖᚱ</p>
+                <p class="char-quote">ᛏᚺᛁᛊ ᛁᛊ ᛗᚤ ᛞᛖᛊᛏᛁᚾᚤ, ᚨᚾᛞ ᛁ ᚹᛁᛚᛚ ᚠᚪᚲᛖ ᛁᛏ.</p>
+            </div>
+            <div class="shard" style="top: 0.7%; left: 0.7%; width: 46%;" onclick="openModal('shard-1-1')"><img src="1.png" alt=""></div>
+            <div class="shard" style="top: 35.1%; left: 0.5%; width: 46.3%;" onclick="openModal('shard-1-2')"><img src="2.png" alt=""></div>
+            <div class="shard" style="top: 0.6%; left: 49.4%; width: 50.3%;" onclick="openModal('shard-1-3')"><img src="3.png" alt=""></div>
+            <div class="shard" style="top: 40.3%; left: 51%; width: 48.7%;" onclick="openModal('shard-1-4')"><img src="4.png" alt=""></div>
+        </div>
+
+        <div class="character-layer" id="layer-char-2">
+            <div class="standing-character"><img src="[2번캐릭터_스탠딩.png]" alt="스탠딩"></div>
+            <div class="char-info-block runic-text">
+                <h3 class="char-name">ᚢᚾᚲᚾᛟᚹᚾ ᛏᚹᛟ</h3>
+                <p class="char-affiliation">ᛊᛟᛊᛟᚲ: ᛬᛬᛬᛬</p>
+                <p class="char-quote">᛬᛬᛬᛬᛬᛬᛬ ᛬᛬᛬᛬᛬.</p>
+            </div>
+            <div class="shard" style="top: 0.7%; left: 0.7%; width: 46%;" onclick="openModal('shard-2-1')"><img src="[2번_파편1.png]" alt=""></div>
+            <div class="shard" style="top: 35.1%; left: 0.5%; width: 46.3%;" onclick="openModal('shard-2-2')"><img src="[2번_파편2.png]" alt=""></div>
+            <div class="shard" style="top: 0.6%; left: 49.4%; width: 50.3%;" onclick="openModal('shard-2-3')"><img src="[2번_파편3.png]" alt=""></div>
+            <div class="shard" style="top: 40.3%; left: 51%; width: 48.7%;" onclick="openModal('shard-2-4')"><img src="[2번_파편4.png]" alt=""></div>
+        </div>
+
+        <div class="character-layer" id="layer-char-3">
+            <div class="standing-character"><img src="[3번캐릭터_스탠딩.png]" alt="스탠딩"></div>
+            <div class="char-info-block runic-text"><h3 class="char-name">ᚢᚾᚲᚾᛟᚹᚾ ᛏᚺᚱᛖᛖ</h3><p class="char-affiliation">ᛊᛟᛊᛟᚲ: ᛬᛬᛬᛬</p><p class="char-quote">᛬᛬᛬᛬᛬᛬᛬ ᛬᛬᛬᛬᛬.</p></div>
+            <div class="shard" style="top: 0.7%; left: 0.7%; width: 46%;" onclick="openModal('shard-3-1')"><img src="[3번_파편1.png]" alt=""></div>
+            <div class="shard" style="top: 35.1%; left: 0.5%; width: 46.3%;" onclick="openModal('shard-3-2')"><img src="[3번_파편2.png]" alt=""></div>
+            <div class="shard" style="top: 0.6%; left: 49.4%; width: 50.3%;" onclick="openModal('shard-3-3')"><img src="[3번_파편3.png]" alt=""></div>
+            <div class="shard" style="top: 40.3%; left: 51%; width: 48.7%;" onclick="openModal('shard-3-4')"><img src="[3번_파편4.png]" alt=""></div>
+        </div>
+
+        <div class="character-layer" id="layer-char-4">
+            <div class="standing-character"><img src="[4번캐릭터_스탠딩.png]" alt="스탠딩"></div>
+            <div class="char-info-block runic-text"><h3 class="char-name">ᚢᚾᚲᚾᛟᚹᚾ ᚠᛟᚢᚱ</h3><p class="char-affiliation">ᛊᛟᛊᛟᚲ: ᛬᛬᛬᛬</p><p class="char-quote">᛬᛬᛬᛬᛬᛬᛬ ᛬᛬᛬᛬᛬.</p></div>
+            <div class="shard" style="top: 0.7%; left: 0.7%; width: 46%;" onclick="openModal('shard-4-1')"><img src="[4번_파편1.png]" alt=""></div>
+            <div class="shard" style="top: 35.1%; left: 0.5%; width: 46.3%;" onclick="openModal('shard-4-2')"><img src="[4번_파편2.png]" alt=""></div>
+            <div class="shard" style="top: 0.6%; left: 49.4%; width: 50.3%;" onclick="openModal('shard-4-3')"><img src="[4번_파편3.png]" alt=""></div>
+            <div class="shard" style="top: 40.3%; left: 51%; width: 48.7%;" onclick="openModal('shard-4-4')"><img src="[4번_파편4.png]" alt=""></div>
+        </div>
+
+        <div class="character-layer" id="layer-char-5">
+            <div class="standing-character"><img src="[5번캐릭터_스탠딩.png]" alt="스탠딩"></div>
+            <div class="char-info-block runic-text"><h3 class="char-name">ᚢᚾᚲᚾᛟᚹᚾ ᚠᛁᚹᛖ</h3><p class="char-affiliation">ᛊᛟᛊᛟᚲ: ᛬᛬᛬᛬</p><p class="char-quote">᛬᛬᛬᛬᛬᛬᛬ ᛬᛬᛬᛬᛬.</p></div>
+            <div class="shard" style="top: 0.7%; left: 0.7%; width: 46%;" onclick="openModal('shard-5-1')"><img src="[5번_파편1.png]" alt=""></div>
+            <div class="shard" style="top: 35.1%; left: 0.5%; width: 46.3%;" onclick="openModal('shard-5-2')"><img src="[5번_파편2.png]" alt=""></div>
+            <div class="shard" style="top: 0.6%; left: 49.4%; width: 50.3%;" onclick="openModal('shard-5-3')"><img src="[5번_파편3.png]" alt=""></div>
+            <div class="shard" style="top: 40.3%; left: 51%; width: 48.7%;" onclick="openModal('shard-5-4')"><img src="[5번_파편4.png]" alt=""></div>
+        </div>
+
+        <div class="character-layer" id="layer-char-6">
+            <div class="standing-character"><img src="[6번캐릭터_스탠딩.png]" alt="스탠딩"></div>
+            <div class="char-info-block runic-text"><h3 class="char-name">ᚢᚾᚲᚾᛟᚹᚾ ᛊᛁᚲᛊ</h3><p class="char-affiliation">ᛊᛟᛊᛟᚲ: ᛬᛬᛬᛬</p><p class="char-quote">᛬᛬᛬᛬᛬᛬᛬ ᛬᛬᛬᛬᛬.</p></div>
+            <div class="shard" style="top: 0.7%; left: 0.7%; width: 46%;" onclick="openModal('shard-6-1')"><img src="[6번_파편1.png]" alt=""></div>
+            <div class="shard" style="top: 35.1%; left: 0.5%; width: 46.3%;" onclick="openModal('shard-6-2')"><img src="[6번_파편2.png]" alt=""></div>
+            <div class="shard" style="top: 0.6%; left: 49.4%; width: 50.3%;" onclick="openModal('shard-6-3')"><img src="[6번_파편3.png]" alt=""></div>
+            <div class="shard" style="top: 40.3%; left: 51%; width: 48.7%;" onclick="openModal('shard-6-4')"><img src="[6번_파편4.png]" alt=""></div>
+        </div>
+
+        <div class="character-layer" id="layer-char-7">
+            <div class="standing-character"><img src="[7번캐릭터_스탠딩.png]" alt="스탠딩"></div>
+            <div class="char-info-block runic-text"><h3 class="char-name">ᚢᚾᚲᚾᛟᚹᚾ ᛊᛖᚹᛖᚾ</h3><p class="char-affiliation">ᛊᛟᛊᛟᚲ: ᛬᛬᛬᛬</p><p class="char-quote">᛬᛬᛬᛬᛬᛬᛬ ᛬᛬᛬᛬᛬.</p></div>
+            <div class="shard" style="top: 0.7%; left: 0.7%; width: 46%;" onclick="openModal('shard-7-1')"><img src="[7번_파편1.png]" alt=""></div>
+            <div class="shard" style="top: 35.1%; left: 0.5%; width: 46.3%;" onclick="openModal('shard-7-2')"><img src="[7번_파편2.png]" alt=""></div>
+            <div class="shard" style="top: 0.6%; left: 49.4%; width: 50.3%;" onclick="openModal('shard-7-3')"><img src="[7번_파편3.png]" alt=""></div>
+            <div class="shard" style="top: 40.3%; left: 51%; width: 48.7%;" onclick="openModal('shard-7-4')"><img src="[7번_파편4.png]" alt=""></div>
+        </div>
+
+        <div class="character-layer" id="layer-char-8">
+            <div class="standing-character"><img src="[8번캐릭터_스탠딩.png]" alt="스탠딩"></div>
+            <div class="char-info-block runic-text"><h3 class="char-name">ᚢᚾᚲᚾᛟᚹᚾ ᛖᛁᚷᚺᛏ</h3><p class="char-affiliation">ᛊᛟᛊᛟᚲ: ᛬᛬᛬᛬</p><p class="char-quote">᛬᛬᛬᛬᛬᛬᛬ ᛬᛬᛬᛬᛬.</p></div>
+            <div class="shard" style="top: 0.7%; left: 0.7%; width: 46%;" onclick="openModal('shard-8-1')"><img src="[8번_파편1.png]" alt=""></div>
+            <div class="shard" style="top: 35.1%; left: 0.5%; width: 46.3%;" onclick="openModal('shard-8-2')"><img src="[8번_파편2.png]" alt=""></div>
+            <div class="shard" style="top: 0.6%; left: 49.4%; width: 50.3%;" onclick="openModal('shard-8-3')"><img src="[8번_파편3.png]" alt=""></div>
+            <div class="shard" style="top: 40.3%; left: 51%; width: 48.7%;" onclick="openModal('shard-8-4')"><img src="[8번_파편4.png]" alt=""></div>
+        </div>
+
+        <div class="character-layer" id="layer-char-9">
+            <div class="standing-character"><img src="[9번캐릭터_스탠딩.png]" alt="스탠딩"></div>
+            <div class="char-info-block runic-text"><h3 class="char-name">ᚢᚾᚲᚾᛟᚹᚾ ᚾᛁᚾᛖ</h3><p class="char-affiliation">ᛊᛟᛊᛟᚲ: ᛬᛬᛬᛬</p><p class="char-quote">᛬᛬᛬᛬᛬᛬᛬ ᛬᛬᛬᛬᛬.</p></div>
+            <div class="shard" style="top: 0.7%; left: 0.7%; width: 46%;" onclick="openModal('shard-9-1')"><img src="[9번_파편1.png]" alt=""></div>
+            <div class="shard" style="top: 35.1%; left: 0.5%; width: 46.3%;" onclick="openModal('shard-9-2')"><img src="[9번_파편2.png]" alt=""></div>
+            <div class="shard" style="top: 0.6%; left: 49.4%; width: 50.3%;" onclick="openModal('shard-9-3')"><img src="[9번_파편3.png]" alt=""></div>
+            <div class="shard" style="top: 40.3%; left: 51%; width: 48.7%;" onclick="openModal('shard-9-4')"><img src="[9번_파편4.png]" alt=""></div>
+        </div>
+
+        <div class="character-layer" id="layer-char-10">
+            <div class="standing-character"><img src="[10번캐릭터_스탠딩.png]" alt="스탠딩"></div>
+            <div class="char-info-block runic-text"><h3 class="char-name">ᚢᚾᚲᚾᛟᚹᚾ ᛏᛖᚾ</h3><p class="char-affiliation">ᛊᛟᛊᛟᚲ: ᛬᛬᛬᛬</p><p class="char-quote">᛬᛬᛬᛬᛬᛬᛬ ᛬᛬᛬᛬᛬.</p></div>
+            <div class="shard" style="top: 0.7%; left: 0.7%; width: 46%;" onclick="openModal('shard-10-1')"><img src="[10번_파편1.png]" alt=""></div>
+            <div class="shard" style="top: 35.1%; left: 0.5%; width: 46.3%;" onclick="openModal('shard-10-2')"><img src="[10번_파편2.png]" alt=""></div>
+            <div class="shard" style="top: 0.6%; left: 49.4%; width: 50.3%;" onclick="openModal('shard-10-3')"><img src="[10번_파편3.png]" alt=""></div>
+            <div class="shard" style="top: 40.3%; left: 51%; width: 48.7%;" onclick="openModal('shard-10-4')"><img src="[10번_파편4.png]" alt=""></div>
+        </div>
+
+        <div class="character-layer" id="layer-char-11">
+            <div class="standing-character"><img src="[11번캐릭터_스탠딩.png]" alt="스탠딩"></div>
+            <div class="char-info-block runic-text"><h3 class="char-name">ᚢᚾᚲᚾᛟᚹᚾ ᛖᛚᛖᚹᛖᚾ</h3><p class="char-affiliation">ᛊᛟᛊᛟᚲ: ᛬᛬᛬᛬</p><p class="char-quote">᛬᛬᛬᛬᛬᛬᛬ ᛬᛬᛬᛬᛬.</p></div>
+            <div class="shard" style="top: 0.7%; left: 0.7%; width: 46%;" onclick="openModal('shard-11-1')"><img src="[11번_파편1.png]" alt=""></div>
+            <div class="shard" style="top: 35.1%; left: 0.5%; width: 46.3%;" onclick="openModal('shard-11-2')"><img src="[11번_파편2.png]" alt=""></div>
+            <div class="shard" style="top: 0.6%; left: 49.4%; width: 50.3%;" onclick="openModal('shard-11-3')"><img src="[11번_파편3.png]" alt=""></div>
+            <div class="shard" style="top: 40.3%; left: 51%; width: 48.7%;" onclick="openModal('shard-11-4')"><img src="[11번_파편4.png]" alt=""></div>
+        </div>
+
+        <div class="character-layer" id="layer-char-12">
+            <div class="standing-character"><img src="[12번캐릭터_스탠딩.png]" alt="스탠딩"></div>
+            <div class="char-info-block runic-text"><h3 class="char-name">ᚢᚾᚲᚾᛟᚹᚾ ᛏᚹᛖᛚᚹᛖ</h3><p class="char-affiliation">ᛊᛟᛊᛟᚲ: ᛬᛬᛬᛬</p><p class="char-quote">᛬᛬᛬᛬᛬᛬᛬ ᛬᛬᛬᛬᛬.</p></div>
+            <div class="shard" style="top: 0.7%; left: 0.7%; width: 46%;" onclick="openModal('shard-12-1')"><img src="[12번_파편1.png]" alt=""></div>
+            <div class="shard" style="top: 35.1%; left: 0.5%; width: 46.3%;" onclick="openModal('shard-12-2')"><img src="[12번_파편2.png]" alt=""></div>
+            <div class="shard" style="top: 0.6%; left: 49.4%; width: 50.3%;" onclick="openModal('shard-12-3')"><img src="[12번_파편3.png]" alt=""></div>
+            <div class="shard" style="top: 40.3%; left: 51%; width: 48.7%;" onclick="openModal('shard-12-4')"><img src="[12번_파편4.png]" alt=""></div>
+        </div>
+
+        <div class="character-layer" id="layer-char-13">
+            <div class="standing-character"><img src="[13번캐릭터_스탠딩.png]" alt="스탠딩"></div>
+            <div class="char-info-block runic-text"><h3 class="char-name">ᚢᚾᚲᚾᛟᚹᚾ ᚦᛁᚱᛏᛖᛖᚾ</h3><p class="char-affiliation">ᛊᛟᛊᛟᚲ: ᛬᛬᛬᛬</p><p class="char-quote">᛬᛬᛬᛬᛬᛬᛬ ᛬᛬᛬᛬᛬.</p></div>
+            <div class="shard" style="top: 0.7%; left: 0.7%; width: 46%;" onclick="openModal('shard-13-1')"><img src="[13번_파편1.png]" alt=""></div>
+            <div class="shard" style="top: 35.1%; left: 0.5%; width: 46.3%;" onclick="openModal('shard-13-2')"><img src="[13번_파편2.png]" alt=""></div>
+            <div class="shard" style="top: 0.6%; left: 49.4%; width: 50.3%;" onclick="openModal('shard-13-3')"><img src="[13번_파편3.png]" alt=""></div>
+            <div class="shard" style="top: 40.3%; left: 51%; width: 48.7%;" onclick="openModal('shard-13-4')"><img src="[13번_파편4.png]" alt=""></div>
+        </div>
+
+        <div class="character-layer" id="layer-char-14">
+            <div class="standing-character"><img src="[14번캐릭터_스탠딩.png]" alt="스탠딩"></div>
+            <div class="char-info-block runic-text"><h3 class="char-name">ᚢᚾᚲᚾᛟᚹᚾ ᚠᛟᚢᚱᛏᛖᛖᚾ</h3><p class="char-affiliation">ᛊᛟᛊᛟᚲ: ᛬᛬᛬᛬</p><p class="char-quote">᛬᛬᛬᛬᛬᛬᛬ ᛬᛬᛬᛬᛬.</p></div>
+            <div class="shard" style="top: 0.7%; left: 0.7%; width: 46%;" onclick="openModal('shard-14-1')"><img src="[14번_파편1.png]" alt=""></div>
+            <div class="shard" style="top: 35.1%; left: 0.5%; width: 46.3%;" onclick="openModal('shard-14-2')"><img src="[14번_파편2.png]" alt=""></div>
+            <div class="shard" style="top: 0.6%; left: 49.4%; width: 50.3%;" onclick="openModal('shard-14-3')"><img src="[14번_파편3.png]" alt=""></div>
+            <div class="shard" style="top: 40.3%; left: 51%; width: 48.7%;" onclick="openModal('shard-14-4')"><img src="[14번_파편4.png]" alt=""></div>
+        </div>
+
+        <div class="character-layer" id="layer-char-15">
+            <div class="standing-character"><img src="[15번캐릭터_스탠딩.png]" alt="스탠딩"></div>
+            <div class="char-info-block runic-text"><h3 class="char-name">ᚢᚾᚲᚾᛟᚹᚾ ᚠᛁᚠᛏᛖᛖᚾ</h3><p class="char-affiliation">ᛊᛟᛊᛟᚲ: ᛬᛬᛬᛬</p><p class="char-quote">᛬᛬᛬᛬᛬᛬᛬ ᛬᛬᛬᛬᛬.</p></div>
+            <div class="shard" style="top: 0.7%; left: 0.7%; width: 46%;" onclick="openModal('shard-15-1')"><img src="[15번_파편1.png]" alt=""></div>
+            <div class="shard" style="top: 35.1%; left: 0.5%; width: 46.3%;" onclick="openModal('shard-15-2')"><img src="[15번_파편2.png]" alt=""></div>
+            <div class="shard" style="top: 0.6%; left: 49.4%; width: 50.3%;" onclick="openModal('shard-15-3')"><img src="[15번_파편3.png]" alt=""></div>
+            <div class="shard" style="top: 40.3%; left: 51%; width: 48.7%;" onclick="openModal('shard-15-4')"><img src="[15번_파편4.png]" alt=""></div>
+        </div>
+
+        <div class="char-nav-container">
+            <button class="nav-arrow" onclick="scrollChar(-1)">&#10094;</button>
+            <div class="char-slider" id="charSlider">
+                <div class="char-icon-box active" data-id="1" onclick="switchChar(1)"><div class="icon-circle" style="background-image: url('[1번캐릭터_아이콘.png]');"></div><span class="icon-name">ᚺᛁᚱᛟ</span></div>
+                <div class="char-icon-box" data-id="2" onclick="switchChar(2)"><div class="icon-circle" style="background-image: url('[2번캐릭터_아이콘.png]');"></div><span class="icon-name">ᛟᚾᛖ</span></div>
+                <div class="char-icon-box" data-id="3" onclick="switchChar(3)"><div class="icon-circle" style="background-image: url('[3번_아이콘.png]');"></div><span class="icon-name">ᛏᚹᛟ</span></div>
+                <div class="char-icon-box" data-id="4" onclick="switchChar(4)"><div class="icon-circle" style="background-image: url('[4번_아이콘.png]');"></div><span class="icon-name">ᛏᚺᚱ</span></div>
+                <div class="char-icon-box" data-id="5" onclick="switchChar(5)"><div class="icon-circle" style="background-image: url('[5번_아이콘.png]');"></div><span class="icon-name">ᚠᛟᚢ</span></div>
+                <div class="char-icon-box" data-id="6" onclick="switchChar(6)"><div class="icon-circle" style="background-image: url('[6번_아이콘.png]');"></div><span class="icon-name">ᚠᛁᚹ</span></div>
+                <div class="char-icon-box" data-id="7" onclick="switchChar(7)"><div class="icon-circle" style="background-image: url('[7번_아이콘.png]');"></div><span class="icon-name">ᛊᛁᚲ</span></div>
+                <div class="char-icon-box" data-id="8" onclick="switchChar(8)"><div class="icon-circle" style="background-image: url('[8번_아이콘.png]');"></div><span class="icon-name">ᛊᛖᚹ</span></div>
+                <div class="char-icon-box" data-id="9" onclick="switchChar(9)"><div class="icon-circle" style="background-image: url('[9번_아이콘.png]');"></div><span class="icon-name">ᛖᛁᚷ</span></div>
+                <div class="char-icon-box" data-id="10" onclick="switchChar(10)"><div class="icon-circle" style="background-image: url('[10번_아이콘.png]');"></div><span class="icon-name">ᚾᛁᚾ</span></div>
+                <div class="char-icon-box" data-id="11" onclick="switchChar(11)"><div class="icon-circle" style="background-image: url('[11번_아이콘.png]');"></div><span class="icon-name">ᛏᛖᚾ</span></div>
+                <div class="char-icon-box" data-id="12" onclick="switchChar(12)"><div class="icon-circle" style="background-image: url('[12번_아이콘.png]');"></div><span class="icon-name">ᛖᛚᚹ</span></div>
+                <div class="char-icon-box" data-id="13" onclick="switchChar(13)"><div class="icon-circle" style="background-image: url('[13번_아이콘.png]');"></div><span class="icon-name">ᛏᚹᛚ</span></div>
+                <div class="char-icon-box" data-id="14" onclick="switchChar(14)"><div class="icon-circle" style="background-image: url('[14번_아이콘.png]');"></div><span class="icon-name">ᚦᚱᛏ</span></div>
+                <div class="char-icon-box" data-id="15" onclick="switchChar(15)"><div class="icon-circle" style="background-image: url('[15번_아이콘.png]');"></div><span class="icon-name">ᚠᛟᚱ</span></div>
+            </div>
+            <button class="nav-arrow" onclick="scrollChar(1)">&#10095;</button>
+        </div>
+
+    </div>
+</section>
+
+<section id="lore">
+    <h2>ᛚᛟᚱᛖ & ᛗᚤᛏᚺ</h2>
+    <div class="runic-text" style="max-width: 600px; text-align: justify;">
+        ᛈᚱᛟᛚᛟᚷᚢᛖ: ᛏᚺᛖ ᚨᚷᛖ ᛟᚠ ᛊᚢᚾ ᛁᛊ ᛟᚹᛖᚱ.
+    </div>
+</section>
+<section id="map">
+    <h2>ᚹᛟᚱᛚᛞ ᛗᚨᛈ</h2>
+    <div class="map-box"><span class="runic-text" style="font-size: 2rem; color: var(--border-color);">ᛏᚺᛖ ᛚᛟᛊᛏ ᛚᚨᚾᛞᛊ</span></div>
+</section>
+<section id="play">
+    <h2>ᛖᚾᛏᛖᚱ ᛏᚺᛖ ᚨᛒᚤᛊᛊ</h2>
+    <button class="play-btn">ᛈᛚᚨᚤ ᚾᛟᚹ</button>
+</section>
+
+<div id="characterModal" class="modal-overlay">
+    <div class="modal-content-box" id="modalBgTarget">
+        <span class="close-btn" onclick="closeModal()">&times;</span>
+        
+        <div class="modal-header">
+            <h2 class="modal-title runic-text" id="modalTitle" style="font-size: 2.2rem; border-bottom-color: var(--accent-color);">제목</h2>
+            <p class="modal-subtitle runic-text" id="modalSubtitle">소제목</p>
+        </div>
+
+        <div class="node-map-area" id="modalNodeArea">
+            </div>
+    </div>
+</div>
+
+<div id="shard-database" style="display: none;">
+
+    <div id="shard-1-1" data-bg="장미 배경1.png" data-title="편린, 옭아매는 저주" data-sub="〈 ㅡ당신은, 지금 존재하고 있나요? 〉">
+        <div class="node-item" style="top: 58%; left: 7%;">
+            <div class="node-icon node-lg" style="background-image: url('장미1-1.png');"></div>
+            <div class="node-label">'대공'</div>
+            <div class="node-tooltip right" style="top: 10%; left: 115%;">
+                <h4>헤르메니온 대공국.</h4>
+                대륙에서 가장 번성한 국가이자 신의 축복이 머무는 땅, 헤르메니온. 그 역사는 '초대 대공' 로젠하르크의 이름과 함께 시작되었다. 고대 기록은 그를 이렇게 묘사한다. 그는 피와 철의 폭풍 속에서 태어나, 흩어진 부족들을 강철 같은 의지로 통합한 정복자. 그의 검이 닿는 곳마다 새로운 경계가 세워졌고, 그의 말이 닿는 곳마다 낡은 질서가 무너져 내렸다. <중략><br><br>...마침내, 신성한 땅에 이르러 그는 멈춰 섰다. 그리고 자신의 피 묻은 검을 대지에 꽂으며 선언했다. 이곳이 바로 신이 약속한 땅이자, 자신의 후손들이 영원히 통치할 왕국임을.<br><br><i><u><—대공국 역사서 '창세의 장', 페이지 395.></u></i>
+            </div>
+        </div>
+        <div class="node-item" style="top: 36%; left: 28%;">
+            <div class="node-icon node-sm" style="background-image: url('장미1-2.png');"></div>
+            <div class="node-label">'저주'</div>
+            <div class="node-tooltip bottom" style="top: 110%; left: 60%;"><h4>ㅡ그녀의 힘에 대하여</h4>헤르메니온 대공국의 17대 황녀. 그리고, 마지막 자손.<br>그녀의 꽃은 칼날보다 날카로운 가시를 지니고 있으며,<br>그 가시에는 「복수」라는 독을 품고 있다.<br><br><b>"이 힘은 축복이 아닌, 저주일 뿐이니까. 거절할 수 있었다면...<br>아니, 우울한 이야기는 여기까지 하자."</b></div>
+        </div>
+        <div class="node-item" style="top: 35%; left: 47%;">
+            <div class="node-icon node-md" style="background-image: url('장미1-3.png');"></div>
+            <div class="node-label">'서약'</div>
+            <div class="node-tooltip left" style="top: 20%; right: 120%;"><h4>타티아나의 책무.</h4>타티아나는 스무 해를 채우기도 전에, 자신의 운명이 타인의 손에 의해 이미 재단되었음을 깨달았다. 부서진 세계의 희망, 어둠을 몰아낼 최후의 대공, 헤르메니온의 마지막 구원. 사람들은 그녀의 힘을 찬양하며 거창한 명분을 속삭였지만, 그 누구도 그녀의 영혼이 닳아 없어지는 소리에는 귀 기울이지 않았다.<br><br><b>"내 과거? ...그다지 유쾌한 이야기는 아니네."</b></div>
+        </div>
+    </div>
+    
+    <div id="shard-1-2" data-bg="장미 배경2.png" data-title="편린, 맹세" data-sub="검은 가시가 심장을 꿰뚫던 밤.">
+        <div class="node-item" style="top: 60%; left: 47%;"><div class="node-icon node-lg" style="background-image: url('[노드아이콘.png]');"></div><div class="node-label">ᚹᛟᚹ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>맹세의 검</h4>설명입니다.</div></div>
+        <div class="node-item" style="top: 34%; left: 38%;"><div class="node-icon node-md" style="background-image: url('[노드아이콘.png]');"></div><div class="node-label">ᛊᚹᛟᚱᛞ</div><div class="node-tooltip left" style="top: 50%; right: 120%;"><h4>가시 덩굴</h4>설명입니다.</div></div>
+        <div class="node-item" style="top: 70%; left: 20%;"><div class="node-icon node-sm" style="background-image: url('[노드아이콘.png]');"></div><div class="node-label">ᛈᚨᛁᚾ</div><div class="node-tooltip top" style="bottom: 120%; left: 50%;"><h4>고통의 기록</h4>설명입니다.</div></div>
+    </div>
+
+    <div id="shard-1-3" data-bg="장미 배경3.png" data-title="편린, 빛바랜 추억" data-sub="부서진 거울 속에 비친 과거.">
+        <div class="node-item" style="top: 40%; left: 50%;"><div class="node-icon node-lg" style="background-image: url('[아이콘.png]');"></div><div class="node-label">ᛈᚨᛊᛏ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div>
+        <div class="node-item" style="top: 25%; left: 30%;"><div class="node-icon node-md" style="background-image: url('[아이콘.png]');"></div><div class="node-label">ᛗᛖᛗᛟ</div><div class="node-tooltip bottom" style="top: 120%; left: 50%;"><h4>설명</h4>내용</div></div>
+        <div class="node-item" style="top: 60%; left: 70%;"><div class="node-icon node-sm" style="background-image: url('[아이콘.png]');"></div><div class="node-label">ᛏᛖᚨᚱ</div><div class="node-tooltip left" style="top: 50%; right: 120%;"><h4>설명</h4>내용</div></div>
+    </div>
+
+    <div id="shard-1-4" data-bg="장미 배경4.png" data-title="편린, 과거의 영광" data-sub="빛의 기사단이 몰락하던 날.">
+        <div class="node-item" style="top: 50%; left: 45%;"><div class="node-icon node-lg" style="background-image: url('[아이콘.png]');"></div><div class="node-label">ᚷᛚᛟᚱᚤ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div>
+        <div class="node-item" style="top: 20%; left: 60%;"><div class="node-icon node-sm" style="background-image: url('[아이콘.png]');"></div><div class="node-label">ᚠᚨᛚᛚ</div><div class="node-tooltip bottom" style="top: 120%; left: 50%;"><h4>설명</h4>내용</div></div>
+        <div class="node-item" style="top: 70%; left: 35%;"><div class="node-icon node-md" style="background-image: url('[아이콘.png]');"></div><div class="node-label">ᚺᛟᛈᛖ</div><div class="node-tooltip top" style="bottom: 120%; left: 50%;"><h4>설명</h4>내용</div></div>
+    </div>
+
+    <div id="shard-2-1" data-bg="[2-1_배경.jpg]" data-title="2번캐릭터 파편1" data-sub="소제목"><div class="node-item" style="top: 40%; left: 50%;"><div class="node-icon node-lg" style="background-image: url('[아이콘.png]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-2-2" data-bg="[2-2_배경.jpg]" data-title="2번캐릭터 파편2" data-sub="소제목"><div class="node-item" style="top: 40%; left: 50%;"><div class="node-icon node-lg" style="background-image: url('[아이콘.png]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-2-3" data-bg="[2-3_배경.jpg]" data-title="2번캐릭터 파편3" data-sub="소제목"><div class="node-item" style="top: 40%; left: 50%;"><div class="node-icon node-lg" style="background-image: url('[아이콘.png]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-2-4" data-bg="[2-4_배경.jpg]" data-title="2번캐릭터 파편4" data-sub="소제목"><div class="node-item" style="top: 40%; left: 50%;"><div class="node-icon node-lg" style="background-image: url('[아이콘.png]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+
+    <div id="shard-3-1" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-3-2" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-3-3" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-3-4" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+
+    <div id="shard-4-1" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-4-2" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-4-3" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-4-4" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+
+    <div id="shard-5-1" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-5-2" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-5-3" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-5-4" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+
+    <div id="shard-6-1" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-6-2" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-6-3" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-6-4" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+
+    <div id="shard-7-1" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-7-2" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-7-3" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-7-4" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+
+    <div id="shard-8-1" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-8-2" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-8-3" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-8-4" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+
+    <div id="shard-9-1" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-9-2" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-9-3" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-9-4" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+
+    <div id="shard-10-1" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-10-2" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-10-3" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-10-4" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+
+    <div id="shard-11-1" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-11-2" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-11-3" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-11-4" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+
+    <div id="shard-12-1" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-12-2" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-12-3" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-12-4" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+
+    <div id="shard-13-1" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-13-2" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-13-3" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-13-4" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+
+    <div id="shard-14-1" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-14-2" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-14-3" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-14-4" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+
+    <div id="shard-15-1" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-15-2" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-15-3" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+    <div id="shard-15-4" data-bg="[bg.jpg]" data-title="제목" data-sub="소제목"><div class="node-item" style="top: 50%; left: 50%;"><div class="node-icon node-md" style="background-image: url('[]');"></div><div class="node-label">ᚱᚢᚾᛖ</div><div class="node-tooltip right" style="top: 50%; left: 120%;"><h4>설명</h4>내용</div></div></div>
+</div>
+
+<script>
+    // 네비게이션 스크롤 활성화 로직
+    document.addEventListener('DOMContentLoaded', () => {
+        const sections = document.querySelectorAll('section');
+        const navItems = document.querySelectorAll('.nav-item');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    navItems.forEach(item => item.classList.remove('active'));
+                    const activeNav = document.querySelector(`.nav-item[href="#${entry.target.id}"]`);
+                    if (activeNav) { activeNav.classList.add('active'); }
+                }
+            });
+        }, { threshold: 0.5 });
+        sections.forEach(section => observer.observe(section));
+    });
+
+    // 캐릭터 전환 및 하단 네비게이션 스크롤 로직
+    function switchChar(id) {
+        document.querySelectorAll('.character-layer').forEach(layer => layer.classList.remove('active'));
+        document.getElementById('layer-char-' + id).classList.add('active');
+        document.querySelectorAll('.char-icon-box').forEach(icon => icon.classList.remove('active'));
+        document.querySelector(`.char-icon-box[data-id="${id}"]`).classList.add('active');
+    }
+
+    function scrollChar(direction) {
+        const slider = document.getElementById('charSlider');
+        slider.scrollBy({ left: direction * 300, behavior: 'smooth' });
+    }
+
+    // 개편된 모달창 열고 닫기 로직 (데이터베이스에서 복사해옴)
+    const modal = document.getElementById('characterModal');
+    const modalBgTarget = document.getElementById('modalBgTarget');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalSubtitle = document.getElementById('modalSubtitle');
+    const modalNodeArea = document.getElementById('modalNodeArea');
+
+    function openModal(targetId) {
+        // 하단 숨겨진 데이터베이스에서 해당 ID의 템플릿을 찾음
+        const template = document.getElementById(targetId);
+        if(!template) return;
+
+        // 배경, 제목, 소제목 가져오기
+        const bgImg = template.getAttribute('data-bg');
+        const titleText = template.getAttribute('data-title');
+        const subText = template.getAttribute('data-sub');
+
+        // 모달창에 덮어쓰기
+        modalBgTarget.style.backgroundImage = `url('${bgImg}')`;
+        modalTitle.innerText = titleText;
+        modalSubtitle.innerText = subText;
+        
+        // 내부에 세팅된 노드 아이콘 정보들을 모달로 복사
+        modalNodeArea.innerHTML = template.innerHTML;
+
+        // 모달 띄우기
+        modal.classList.add('active');
+    }
+
+    function closeModal() { modal.classList.remove('active'); }
+    modal.addEventListener('click', (e) => { if (e.target === modal) { closeModal(); } });
+</script>
+</body>
+</html>
